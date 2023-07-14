@@ -1,6 +1,11 @@
 import numpy as np
+import scipy.linalg as SLA
 from mc_const import *
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['font.size'] = 16
+
 
 nphs = np.heaviside
 
@@ -10,16 +15,34 @@ m_vf = np.zeros((ITER+1,Nst))
 m_w = np.zeros((ITER+1,Nst))
 m_lambda = np.zeros((ITER+1,Nst))
 m_vf[-1,:] = PHIT # check
-m_w[-1,:] = np.exp(PHIT) # check
-m_lambda[-1,:] = np.exp(PHIT)/np.sum(np.exp(PHIT)) # check
+m_w[-1,:] = np.exp(-PHIT) # check
+m_lambda[-1,:] = np.exp(-PHIT)/np.sum(np.exp(-PHIT)) # check
 
+a_optconw = np.ones((ITER+1,Nst,Nst,Nst))
+for i in range(0,Nst):
+	a_optconw[-1,i,i,:] = (1/m_w[-1,i])*m_w[-1,:]
+
+for iter in range(ITER,0,-1):
+	m_st = SLA.expm((iter-ITER)*STEP*(0.5*Hd - A))
+	m_w[iter-1,:] = np.dot(m_st,m_w[-1,:])
+	m_lambda[iter-1,:] = m_w[iter-1,:]/(np.sum(m_w[iter-1,:]))
+	#m_vf[iter-1,:] = -np.log(m_w[iter-1,:])
+	for i in range(0,Nst):
+		a_optconw[iter-1,i,i,:] = (1/m_w[iter-1,i])*m_w[iter-1,:]
+
+PROB0 = np.exp(-PHIT)/np.sum(np.exp(-PHIT))
 m_mu = np.zeros((ITER+1,Nst))
 m_mu[0,:] = PROB0
+a_optconmu = np.ones((ITER+1,Nst,Nst,Nst))
+for i in range(0,Nst):
+	a_optconmu[-1,i,i,:] = (1/m_mu[0,i])*m_mu[0,:]
 
 for iter in range(0,ITER):
 	#print(np.sum((np.dot(m_mu[iter,:],H))*m_mu[iter,:] - np.dot(Hd,m_mu[iter,:])))
 	m_mu[iter+1,:] = m_mu[iter,:] + np.dot(A.T,m_mu[iter,:])*STEP + 0.5*STEP*((np.dot(m_mu[iter,:],H))*m_mu[iter,:] - np.dot(Hd,m_mu[iter,:]))
 	#m_mu[iter+1,:] = m_mu[iter+1,:]/np.sum(m_mu[iter+1,:])
+	for i in range(0,Nst):
+		a_optconmu[ITER-iter-1,i,i,:] = (1/m_mu[iter+1,i])*m_mu[iter+1,:]
 
 print(m_mu[0,:])
 
@@ -41,6 +64,10 @@ m_pN = np.zeros((ITER+1,Nst))
 
 m_pN[0,:] = (1/Np)*(np.bincount(m_X[0,:],minlength=int(Nst))) 
 print(m_pN[0,:])
+
+a_optconN = np.ones((ITER+1,Nst,Nst,Nst))
+for i in range(0,Nst):
+	a_optconN[-1,i,i,:] = (1/m_pN[0,i])*m_pN[0,:]
 
 m_Tmodel = np.zeros((Np,Nst,Nst)) # i,j th element represents transition from i to j
 m_dTmodel = np.zeros((Np,Nst,Nst))
@@ -130,7 +157,7 @@ for iter in range(0,ITER): # simplistic model
 	#print(m_delta2D.shape)
 	r_ind2D = np.argmax(m_delta2D,axis=1)
 	#print(r_ind2D.shape)
-	r_indr, r_indc = np.unravel_index(r_ind2D,(Nst,Nst+1)) #m_delta.shape[1:3]) # r_indr[i], r_indc[i] is the index of maximum for ith particle 
+	r_indr, r_indc = np.unravel_index(r_ind2D,(Nst,Nst+1)) #m_delta.shape[1:3]) # r_indr[i], r_indc[i] is the index of maximum in array m_delta for ith particle 
 	m_ind = np.argwhere(m_delta > 0.0)
 	m_X[iter+1,:] = m_X[iter,:]
 	for i in range(0,m_ind.shape[0]):
@@ -149,33 +176,56 @@ for iter in range(0,ITER): # simplistic model
 			m_dTmodel[particle,Xnow,Xnew] = 0.0
 			m_Tmodel[particle,Xnow,Xnew] = rng.exponential(1.0) 
 			#print(iter,"model",Xnow,Xnew)
-		else:
-			if (m_ind[i,2] == Nst):
-				m_dTcon[particle,m_ind[i,1]] = 0.0
-				m_Tcon[particle,m_ind[i,1]] = rng.exponential(1.0) 
-			else:
-				m_dTmodel[particle,m_ind[i,1],m_ind[i,2]] = 0.0
-				m_Tmodel[particle,m_ind[i,1],m_ind[i,2]] = rng.exponential(1.0)
-			#print(iter,"coutner reset")
+		else:			
+			m_dTmodel[particle,r_indr[particle],r_indc[particle]] = 0.0
+			m_Tmodel[particle,r_indr[particle],r_indc[particle]] = rng.exponential(1.0)
+		#print(iter,"coutner reset")
+	# for i in range(0,m_ind.shape[0]):
+	# 	#print(iter,"jump")
+	# 	particle = m_ind[i,0]
+	# 	Xnow = m_X[iter,particle]
+	# 	Xnew = r_indr[particle]
+	# 	if (r_indc[particle] == Nst): # control counter ticked			
+	# 		m_X[iter+1,particle] = Xnew
+	# 		m_dTcon[particle,Xnew] = 0.0
+	# 		m_Tcon[particle,Xnew] = rng.exponential(1.0) 
+	# 		#print(iter,"con",Xnow,Xnew)
+	# 	elif( Xnow == Xnew ):
+	# 		Xnew = r_indc[particle]
+	# 		m_X[iter+1,particle] = Xnew
+	# 		m_dTmodel[particle,Xnow,Xnew] = 0.0
+	# 		m_Tmodel[particle,Xnow,Xnew] = rng.exponential(1.0) 
+	# 		#print(iter,"model",Xnow,Xnew)
+	# 	else:
+	# 		if (m_ind[i,2] == Nst):
+	# 			m_dTcon[particle,m_ind[i,1]] = 0.0
+	# 			m_Tcon[particle,m_ind[i,1]] = rng.exponential(1.0) 
+	# 		else:
+	# 			m_dTmodel[particle,m_ind[i,1],m_ind[i,2]] = 0.0
+	# 			m_Tmodel[particle,m_ind[i,1],m_ind[i,2]] = rng.exponential(1.0)
+	# 		#print(iter,"coutner reset")
 
+	m_pN[iter+1,:] = (1/Np)*(np.bincount(m_X[iter+1,:],minlength=Nst))
 	m_dTmodel += AREP*STEP
 	m_dTcon = m_dTcon + (STEP*np.dot(U,m_pN[iter,:]))
-	m_pN[iter+1,:] = (1/Np)*(np.bincount(m_X[iter+1,:],minlength=Nst)) 
+	
+	for i in range(0,Nst):
+		a_optconN[ITER-iter-1,i,i,:] = (1/m_pN[iter+1,i])*m_pN[iter+1,:] 
 
 
 
 
-plt.figure(2)
-plt.subplot(311)
-plt.plot(np.arange(ITER+1), m_mu[:,0],'k')
-plt.plot(np.arange(ITER+1), m_pN[:,0],'b')
-plt.subplot(312)
-plt.plot(np.arange(ITER+1), m_mu[:,1],'k')
-plt.plot(np.arange(ITER+1), m_pN[:,1],'b')
-plt.subplot(313)
-plt.plot(np.arange(ITER+1), np.sum(m_mu,axis=1),'k')
-plt.plot(np.arange(ITER+1), np.sum(m_pN,axis=1),'b')
-plt.show()
+# plt.figure(2)
+# plt.subplot(311)
+# plt.plot(np.arange(ITER+1), m_mu[:,0],'k')
+# plt.plot(np.arange(ITER+1), m_pN[:,0],'b')
+# plt.subplot(312)
+# plt.plot(np.arange(ITER+1), m_mu[:,1],'k')
+# plt.plot(np.arange(ITER+1), m_pN[:,1],'b')
+# plt.subplot(313)
+# plt.plot(np.arange(ITER+1), np.sum(m_mu,axis=1),'k')
+# plt.plot(np.arange(ITER+1), np.sum(m_pN,axis=1),'b')
+# plt.show()
 
 # plt.figure(3)
 # plt.subplot(121)
@@ -185,3 +235,31 @@ plt.show()
 # #plt.subplot(212)
 # #plt.plot(t, 2*s1)
 # plt.show()
+
+fig1 = plt.figure()
+ax = plt.subplot(211)
+plt.plot(np.arange(ITER+1), m_mu[:,0],'k',label="$\mu_t$")
+plt.plot(np.arange(ITER+1), np.flip(m_lambda[:,0]),'--r',label="$\lambda_{T-t}$")
+plt.plot(np.arange(ITER+1), m_pN[:,0],'b',label="$\hat{\mu}_t$")
+ax.legend(ncol=3)
+ax = plt.subplot(212)
+plt.plot(np.arange(ITER+1), m_mu[:,1],'k')
+plt.plot(np.arange(ITER+1), np.flip(m_lambda[:,1]),'--r')
+plt.plot(np.arange(ITER+1), m_pN[:,1],'b')
+ax.set_xlabel("Time (ms)")
+#fig.suptitle("Convergence of 1000 particle \n mean field system to true probability")
+plt.show()
+#plt.savefig('results-mc-p.pdf')
+
+fig2 = plt.figure()
+ax = plt.subplot(211)
+plt.plot(np.arange(ITER+1), a_optconw[:,0,0,1],'k',label="$u_t$")
+plt.plot(np.arange(ITER+1), a_optconN[:,0,0,1],'b',label="$\hat{u}_t$")
+ax.legend(ncol=2)
+ax = plt.subplot(212)
+plt.plot(np.arange(ITER+1), a_optconw[:,1,1,0],'k')
+plt.plot(np.arange(ITER+1), a_optconN[:,1,1,0],'b')
+ax.set_xlabel("Time (ms)")
+#fig.suptitle("Convergence of 1000 particle \n mean field system to true probability")
+plt.show()
+#plt.savefig('results-mc-u.pdf')
