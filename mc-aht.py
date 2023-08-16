@@ -1,12 +1,11 @@
 import numpy as np
 import scipy.linalg as SLA
-from mc_const import *
+from mctest_const import *
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.rcParams['text.usetex'] = True
 matplotlib.rcParams['font.size'] = 16
 
-print("Np=",Np," T=",T," step=",STEP)
 
 nphs = np.heaviside
 
@@ -19,32 +18,32 @@ m_vf[-1,:] = PHIT # check
 m_w[-1,:] = np.exp(-PHIT) # check
 m_lambda[-1,:] = np.exp(-PHIT)/np.sum(np.exp(-PHIT)) # check
 
-a_optconw = np.ones((ITER+1,Nst,Nst,Nst))
-for i in range(0,Nst):
-	a_optconw[-1,i,i,:] = (1/m_w[-1,i])*m_w[-1,:]
+# a_optconw = np.ones((ITER+1,Nst,Nst,Nst))
+# for i in range(0,Nst):
+# 	a_optconw[-1,i,i,:] = (1/m_w[-1,i])*m_w[-1,:]
 
-print("eig=",np.linalg.eigvals(0.5*Hd - A))
+print("eig=",np.linalg.eig(0*0.5*Hd - A))
 for iter in range(ITER,0,-1):
-	m_st = SLA.expm((iter-ITER)*STEP*(0.5*Hd - A))
-	m_w[iter-1,:] = np.dot(m_st,m_w[-1,:])
+	m_stm = SLA.expm((iter-ITER)*STEP*(0*0.5*Hd - A))
+	m_w[iter-1,:] = np.dot(m_stm,m_w[-1,:])
 	m_lambda[iter-1,:] = m_w[iter-1,:]/(np.sum(m_w[iter-1,:]))
 	#m_vf[iter-1,:] = -np.log(m_w[iter-1,:])
-	for i in range(0,Nst):
-		a_optconw[iter-1,i,i,:] = (1/m_w[iter-1,i])*m_w[iter-1,:]
+	# for i in range(0,Nst):
+	# 	a_optconw[iter-1,i,i,:] = (1/m_w[iter-1,i])*m_w[iter-1,:]
 
 PROB0 = np.exp(-PHIT)/np.sum(np.exp(-PHIT))
 m_mu = np.zeros((ITER+1,Nst))
 m_mu[0,:] = PROB0
-a_optconmu = np.ones((ITER+1,Nst,Nst,Nst))
-for i in range(0,Nst):
-	a_optconmu[-1,i,i,:] = (1/m_mu[0,i])*m_mu[0,:]
+# a_optconmu = np.ones((ITER+1,Nst,Nst,Nst))
+# for i in range(0,Nst):
+# 	a_optconmu[-1,i,i,:] = (1/m_mu[0,i])*m_mu[0,:]
 
 for iter in range(0,ITER):
 	#print(np.sum((np.dot(m_mu[iter,:],H))*m_mu[iter,:] - np.dot(Hd,m_mu[iter,:])))
-	m_mu[iter+1,:] = m_mu[iter,:] + np.dot(A.T,m_mu[iter,:])*STEP + 0.5*STEP*((np.dot(m_mu[iter,:],H))*m_mu[iter,:] - np.dot(Hd,m_mu[iter,:]))
+	m_mu[iter+1,:] = m_mu[iter,:] + np.dot(A.T,m_mu[iter,:])*STEP + 0*0.5*STEP*((np.dot(m_mu[iter,:],H))*m_mu[iter,:] - np.dot(Hd,m_mu[iter,:]))
 	m_mu[iter+1,:] = m_mu[iter+1,:]/np.sum(m_mu[iter+1,:])
-	for i in range(0,Nst):
-		a_optconmu[ITER-iter-1,i,i,:] = (1/m_mu[iter+1,i])*m_mu[iter+1,:]
+	# for i in range(0,Nst):
+	# 	a_optconmu[ITER-iter-1,i,i,:] = (1/m_mu[iter+1,i])*m_mu[iter+1,:]
 
 print("prob0=",m_mu[0,:])
 
@@ -71,9 +70,9 @@ m_pNplot[0,:] = (1/Np)*(np.bincount(m_X,minlength=int(Nst)))
 m_pN = m_pNplot[0,:]
 print("m pN=", m_pN)
 
-a_optconN = np.ones((ITER+1,Nst,Nst,Nst))
-for i in range(0,Nst):
-	a_optconN[-1,i,i,:] = (1/m_pN[i])*m_pN
+# a_optconN = np.ones((ITER+1,Nst,Nst,Nst))
+# for i in range(0,Nst):
+# 	a_optconN[-1,i,i,:] = (1/m_pN[i])*m_pN
 
 # m_Tmodel = np.zeros((Np,Nst,Nst)) # i,j th element represents transition from i to j
 # m_dTmodel = np.zeros((Np,Nst,Nst))
@@ -83,10 +82,10 @@ for i in range(0,Nst):
 # #m_dNcon = np.zeros((Np,Nst))
 
 m_T = np.zeros((Np,Nst+1,Nst)) # """ for axis1 = 0 to Nst-1, for every particle, i,j th element represents 
-# transition from i to j, and fr axis1 = Nst, for every particle it represents the control """
+# transition from i to j, and for axis1 = Nst, for every particle it represents the control """
 m_rates = np.zeros((Np,Nst+1,Nst))
 m_rates[:,0:Nst,:] = AREP
-m_rates[:,Nst,:] = np.dot(U,m_pN)
+m_rates[:,Nst,:] = -1.0 #np.dot(U,m_pN)
 
 
 # for k in range(0,Np):
@@ -121,23 +120,25 @@ while (sim_time < T):
 	# m_Xplot[t1:t2,:] = m_X
 	m_pNplot[t1:t2,:] = m_pN
 
-	# if sim_time <= STEP*2:
-	# 	print(m_pN, t1, t2, jump_time, particle)
+	if sim_time <= 0.05:
+		print(m_pN, t1, t2, jump_time)
 
 	if(ind_jump[1] == Nst):
-		m_X[particle] = ind_jump[2]
+		#m_X[particle] = ind_jump[2]
+		print("control")
 	elif(m_X[particle] == ind_jump[1]):
 		m_X[particle] = ind_jump[2]
 	else:
 		pass
 	m_T = m_T - m_rates*jump_time
+	if (np.abs(m_T[ind_jump]) >= 1e-17):
+		print(m_T[ind_jump])
 	m_T[ind_jump] = rng.exponential(1.0)
 	sim_time = sim_time + jump_time
 
 	m_pN = (1/Np)*(np.bincount(m_X,minlength=int(Nst)))
 	#print(m_pN)
-	m_rates[:,Nst,:] = np.dot(U,m_pN)
-	
+	m_rates[:,Nst,:] = -1.0 #np.dot(U,m_pN)
 
 
 # for iter in range(0,ITER): # simplistic model
@@ -228,38 +229,30 @@ while (sim_time < T):
 # #plt.plot(t, 2*s1)
 # plt.show()
 
-m_perror = 100*np.abs(np.divide(m_mu - m_pNplot,m_mu))
-print("max error1=",np.max(m_perror[:,0])," max error2=",np.max(m_perror[:,1]))
-
 fig1 = plt.figure()
-ax = plt.subplot(411)
+ax = plt.subplot(211)
 plt.plot(np.arange(ITER+1), m_mu[:,0],'k',label="$\mu_t$")
 plt.plot(np.arange(ITER+1), np.flip(m_lambda[:,0]),'--r',label="$\lambda_{T-t}$")
 plt.plot(np.arange(ITER+1), m_pNplot[:,0],'b',label="$\hat{\mu}_t$")
 ax.legend(ncol=3)
-ax = plt.subplot(412)
-plt.plot(np.arange(ITER+1), m_perror[:,0],'k',label="error1 pc")
-ax.legend()
-ax = plt.subplot(413)
+ax = plt.subplot(212)
 plt.plot(np.arange(ITER+1), m_mu[:,1],'k')
 plt.plot(np.arange(ITER+1), np.flip(m_lambda[:,1]),'--r')
 plt.plot(np.arange(ITER+1), m_pNplot[:,1],'b')
-ax = plt.subplot(414)
-plt.plot(np.arange(ITER+1), m_perror[:,1],'k',label="error2 pc")
 ax.set_xlabel("Time (ms)")
 #fig.suptitle("Convergence of 1000 particle \n mean field system to true probability")
 plt.show()
 #plt.savefig('results-mc-p.pdf')
 
-fig2 = plt.figure()
-ax = plt.subplot(211)
-plt.plot(np.arange(ITER+1), a_optconw[:,0,0,1],'k',label="$u_t$")
-plt.plot(np.arange(ITER+1), a_optconN[:,0,0,1],'b',label="$\hat{u}_t$")
-ax.legend(ncol=2)
-ax = plt.subplot(212)
-plt.plot(np.arange(ITER+1), a_optconw[:,1,1,0],'k')
-plt.plot(np.arange(ITER+1), a_optconN[:,1,1,0],'b')
-ax.set_xlabel("Time (ms)")
+# fig2 = plt.figure()
+# ax = plt.subplot(211)
+# plt.plot(np.arange(ITER+1), a_optconw[:,0,0,1],'k',label="$u_t$")
+# plt.plot(np.arange(ITER+1), a_optconN[:,0,0,1],'b',label="$\hat{u}_t$")
+# ax.legend(ncol=2)
+# ax = plt.subplot(212)
+# plt.plot(np.arange(ITER+1), a_optconw[:,1,1,0],'k')
+# plt.plot(np.arange(ITER+1), a_optconN[:,1,1,0],'b')
+# ax.set_xlabel("Time (ms)")
 #fig.suptitle("Convergence of 1000 particle \n mean field system to true probability")
 plt.show()
 #plt.savefig('results-mc-u.pdf')
